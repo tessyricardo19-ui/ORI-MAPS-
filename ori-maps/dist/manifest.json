@@ -1,0 +1,20 @@
+{
+  "short_name": "ORI Maps",
+  "name": "ORI Maps - Navigation Nationale",
+  "icons": [
+    {
+      "src": "https://i.ibb.co/6JJ84v7y/IMG-9786.jpg",
+      "sizes": "192x192",
+      "type": "image/jpg"
+    },
+    {
+      "src": "https://i.ibb.co/6JJ84v7y/IMG-9786.jpg",
+      "sizes": "512x512",
+      "type": "image/jpg"
+    }
+  ],
+  "start_url": "./index.html",
+  "display": "standalone",
+  "theme_color": "#1a73e8",
+  "background_color": "#ffffff"
+}

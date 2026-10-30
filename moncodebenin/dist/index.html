@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MonCode Bénin - Logistique Pro</title>
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    <style>
+        /* --- DESIGN PREMIUM NOIR ET BLANC --- */
+        :root { --bg: #121212; --card: #ffffff; --text: #212121; --muted: #757575; --momo: #ffcc00; }
+        body { background: linear-gradient(180deg, var(--bg) 40%, #f4f4f4 40%); font-family: 'Inter', sans-serif; margin: 0; padding: 15px; min-height: 100vh; }
+        
+        /* --- NAVIGATION --- */
+        .nav-tabs { display: flex; background: #000; border-radius: 18px; padding: 5px; margin: 0 auto 20px auto; max-width: 400px; border: 1px solid #333; }
+        .tab-btn { flex: 1; border: none; padding: 14px; border-radius: 14px; font-weight: 800; cursor: pointer; font-size: 12px; transition: 0.3s; }
+        .tab-active { background: #fff; color: #000; box-shadow: 0 4px 10px rgba(0,0,0,0.2); }
+        .tab-inactive { background: transparent; color: #fff; opacity: 0.5; }
+
+        /* --- CARTES --- */
+        .container { max-width: 420px; margin: auto; }
+        .card { background: var(--card); border-radius: 30px; padding: 25px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); margin-bottom: 20px; text-align: center; }
+        h1 { font-weight: 900; letter-spacing: -1.5px; margin: 0 0 10px 0; font-size: 32px; }
+        
+        /* --- FORMULAIRE --- */
+        input { width: 100%; padding: 16px; margin-bottom: 12px; border: 2px solid #eee; border-radius: 15px; box-sizing: border-box; font-size: 16px; }
+        .btn-black { width: 100%; padding: 18px; background: #000; color: #fff; border: none; border-radius: 15px; font-weight: 800; cursor: pointer; }
+        
+        /* --- CALCULATEUR --- */
+        .calc-box { background: #f9f9f9; border: 1px solid #eee; border-radius: 20px; padding: 20px; margin-top: 20px; }
+        .price-display { font-size: 22px; font-weight: 900; color: #000; margin: 15px 0; }
+        .btn-momo { background: var(--momo); color: #000; border: none; padding: 12px; border-radius: 12px; font-weight: 900; width: 100%; cursor: pointer; }
+
+        /* --- MODE HORS LIGNE --- */
+        .badge-offline { background: #ff5252; color: #fff; padding: 5px 12px; border-radius: 20px; font-size: 10px; font-weight: 800; display: none; margin-bottom: 15px; }
+        
+        .view { display: none; }
+        .view-active { display: block; }
+        .item { background: #fff; border-radius: 20px; padding: 15px; margin-top: 15px; border: 1px solid #eee; text-align: left; box-shadow: 0 4px 8px rgba(0,0,0,0.02); }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div id="offline-tag" style="text-align:center;"><span class="badge-offline">📴 MODE HORS-LIGNE (PRIX OK)</span></div>
+    
+    <div class="nav-tabs">
+        <button id="t-c" class="tab-btn tab-active" onclick="switchTab('client')">CLIENT</button>
+        <button id="t-l" class="tab-btn tab-inactive" onclick="switchTab('livreur')">LIVREUR</button>
+    </div>
+
+    <!-- VUE CLIENT -->
+    <div id="v-c" class="view view-active card">
+        <h1>MonCode</h1>
+        <p style="color:var(--muted); font-size: 14px; margin-bottom: 20px;">Générez votre adresse numérique précise au Bénin.</p>
+        <input type="text" id="nom-c" placeholder="Nom (ex: Maison Ricardo)">
+        <input type="tel" id="tel-c" placeholder="Téléphone (+229...)">
+        <button class="btn-black" onclick="saveAddress()">OBTENIR MON CODE</button>
+    </div>
+
+    <!-- VUE LIVREUR -->
+    <div id="v-l" class="view">
+        <div class="card">
+            <h1>Logistique</h1>
+            <p style="color:var(--muted); font-size: 13px;">Recherche client et calcul 100% hors-ligne.</p>
+            
+            <!-- CALCULATEUR HORS-LIGNE -->
+            <div class="calc-box">
+                <p style="margin:0 0 10px 0; font-weight:800; font-size:11px; letter-spacing:1px; color:var(--muted);">TARIFICATION COURSE</p>
+                <input type="text" id="code-dep" placeholder="Code Départ (BJ-...)">
+                <input type="text" id="code-arr" placeholder="Code Arrivée (Client)">
+                <button onclick="calculerPrix()" style="background:none; border:2px solid #000; padding:12px; width:100%; border-radius:12px; font-weight:bold; cursor:pointer;">CALCULER LE TARIF</button>
+                <div id="res-prix" class="price-display">0 FCFA</div>
+                <button class="btn-momo" onclick="payMoMo()">🟡 PAYER PAR MOMO (MTN)</button>
+            </div>
+            
+            <button class="btn-black" style="margin-top:20px;" onclick="rechercherMaps()">VOIR SUR GOOGLE MAPS</button>
+        </div>
+
+        <h3 style="text-align:left; font-size:16px; margin: 30px 0 15px 10px; color: #333;">📦 ANNUAIRE NATIONAL</h3>
+        <div id="liste-annuaire"></div>
+    </div>
+</div>
+
+<script>
+    const S_URL = "https://xswxjifflxbzalfcupwv.supabase.co";
+    const S_KEY = "sb_publishable_OFQ06Osq-f9LGYjlZt8K2Q_cHJy76CQ";
+    const sb = supabase.createClient(S_URL, S_KEY);
+
+    // DÉTECTION CONNEXION
+    window.addEventListener('online', () => document.getElementById('offline-tag').firstChild.style.display = "none");
+    window.addEventListener('offline', () => document.getElementById('offline-tag').firstChild.style.display = "inline-block");
+
+    function switchTab(mode) {
+        document.querySelectorAll('.view').forEach(v => v.classList.remove('view-active'));
+        document.querySelectorAll('.tab-btn').forEach(b => { b.classList.remove('tab-active'); b.classList.add('tab-inactive'); });
+        if(mode === 'client') { document.getElementById('v-c').classList.add('view-active'); document.getElementById('t-c').className="tab-btn tab-active"; }
+        else { document.getElementById('v-l').classList.add('view-active'); document.getElementById('t-l').className="tab-btn tab-active"; chargerAnnuaire(); }
+    }
+
+    // CALCULATEUR 100% HORS-LIGNE (Logique mathématique locale)
+    function calculerPrix() {
+        let c1 = document.getElementById('code-dep').value.trim().split('-');
+        let c2 = document.getElementById('code-arr').value.trim().split('-');
+        if(c1.length < 3 || c2.length < 3) return alert("Codes invalides !");
+
+        let lat1 = parseFloat(c1[1])/10000, lon1 = parseFloat(c1[2])/10000;
+        let lat2 = parseFloat(c2[1])/10000, lon2 = parseFloat(c2[2])/10000;
+
+        let dLat = (lat2 - lat1) * 111;
+        let dLon = (lon2 - lon1) * 111 * Math.cos(lat1 * Math.PI / 180);
+        let dist = Math.sqrt(dLat * dLat + dLon * dLon).toFixed(2);
+
+        let prix = Math.round(dist * 200 + 500); // 200F/km + 500F fixe
+        document.getElementById('res-prix').innerHTML = `<small style="font-size:12px; color:#777;">${dist} km</small><br>${prix} FCFA`;
+        localStorage.setItem('last_p', prix);
+    }
+
+    function payMoMo() {
+        let p = localStorage.getItem('last_p') || 0;
+        if(p == 0) return alert("Calculez le prix d'abord !");
+        let ussd = `tel:*122*1*1*000000*${p}#`; // Simulation MTN Moov Bénin
+        if(confirm(`Confirmer le paiement MoMo de ${p} FCFA ?`)) window.location.href = ussd;
+    }
+
+    async function saveAddress() {
+        let n = document.getElementById('nom-c').value, t = document.getElementById('tel-c').value;
+        if(!n || !t) return alert("Remplissez tout !");
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            let lat = pos.coords.latitude, lon = pos.coords.longitude;
+            let code = "BJ-" + Math.abs(lat).toFixed(4).replace('.','') + "-" + Math.abs(lon).toFixed(4).replace('.','');
+            if(navigator.onLine) {
+                await sb.from('adresses').insert([{ nom: n, telephone: t, code, lat, lon }]);
+                alert("Enregistré sur le Cloud ! Votre code : " + code);
+            } else {
+                alert("Hors-ligne ! Adresse sauvée localement.");
+            }
+        });
+    }
+
+    async function chargerAnnuaire() {
+        let list;
+        if(navigator.onLine) {
+            const { data } = await sb.from('adresses').select('*').order('created_at', { ascending: false }).limit(10);
+            list = data; if(list) localStorage.setItem('cache_bj', JSON.stringify(list));
+        } else {
+            list = JSON.parse(localStorage.getItem('cache_bj')) || [];
+        }
+        let html = "";
+        list.forEach(item => {
+            html += `<div class="item"><b>${item.nom}</b> <span style="float:right; font-size:12px; background:#000; color:#fff; padding:3px 8px; border-radius:8px;">${item.code}</span><br><small style="color:#666">📞 ${item.telephone}</small></div>`;
+        });
+        document.getElementById('liste-annuaire').innerHTML = html || "Aucune adresse.";
+    }
+
+    function rechercherMaps() {
+        let v = document.getElementById('code-arr').value.split('-');
+        if(v.length < 3) return alert("Code invalide");
+        window.open(`https://www.google.com/maps?q=${parseFloat(v[1])/10000},${parseFloat(v[2])/10000}`, '_blank');
+    }
+</script>
+</body>
+</html>

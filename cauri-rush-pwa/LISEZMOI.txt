@@ -1,0 +1,26 @@
+CAURI RUSH - paquet PWA (version 2)
+
+Contenu
+  index.html            le jeu (Supabase déjà configuré)
+  manifest.webmanifest  nom, couleurs, icônes
+  sw.js                 fonctionnement hors ligne (solo)
+  icons/                icônes 192, 512 et iOS
+  audio/                sons en fon (voir audio/LISEZMOI.txt)
+
+Nouveautés v2
+  3 niveaux de difficulté (menu principal) : FACILE, NORMAL (défaut), EXPERT
+  fourmis rapides en groupes de 3, piques au sol
+  boss plus costauds, plus rapides, et furieux à mi-vie
+  saut plus souple (délai de grâce au bord, saut mémorisé)
+  la course entre amis garde la difficulté NORMAL pour tous
+  voix en fon (tes enregistrements) : boss vaincu, groupe de fourmis éliminé
+
+Mettre en ligne (HTTPS obligatoire pour installer l'appli)
+  Netlify : app.netlify.com/drop, glisse le DOSSIER cauri-rush-pwa.
+  GitHub Pages : mets les fichiers dans un dépôt, puis Settings > Pages.
+
+Mise à jour : renvoie les fichiers. Si l'ancienne version reste affichée, ferme et rouvre l'appli.
+
+3D
+  Bouton 3D / 2D en haut de l'écran : bascule vers l'ancien rendu 2D si le téléphone est lent.
+  Le jeu choisit seul la 2D si WebGL2 n'est pas disponible. La résolution s'adapte automatiquement.

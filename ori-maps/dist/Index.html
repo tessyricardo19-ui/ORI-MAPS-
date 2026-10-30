@@ -1,0 +1,186 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>ORI Maps Global | Précision Géodésique</title>
+    
+    <!-- Leaflet & Routing -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@latest/dist/leaflet-routing-machine.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        :root { --ori-blue: #1a73e8; --ori-green: #34a853; --bg: #f8f9fa; }
+        body { margin:0; font-family: 'Space Grotesk', sans-serif; overflow:hidden; background: var(--bg); }
+        #map { height: 100vh; width: 100vw; z-index: 1; }
+
+        /* DESIGN GOOGLE STYLE */
+        .search-container { position: fixed; top: 15px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 90%; max-width: 450px; display: flex; align-items: center; background: white; padding: 10px 15px; border-radius: 28px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); border: 1px solid #ddd; }
+        .search-container input { flex: 1; border: none; outline: none; font-size: 16px; padding: 5px; font-family: inherit; }
+        .logo-img { width: 30px; height: 30px; border-radius: 50%; margin-right: 10px; border: 1px solid #eee; }
+
+        .btn-locate { position: fixed; right: 20px; bottom: 120px; z-index: 1000; background: white; width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 4px 15px rgba(0,0,0,0.2); cursor: pointer; border: none; font-size: 24px; color: var(--ori-blue); }
+
+        /* NAVIGATION SHEET */
+        .nav-sheet { position: fixed; bottom: 0; left: 0; right: 0; background: white; z-index: 1000; border-radius: 24px 24px 0 0; padding: 20px; box-shadow: 0 -5px 25px rgba(0,0,0,0.1); transform: translateY(85%); transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1); }
+        .nav-sheet.open { transform: translateY(0); }
+        .handle { width: 40px; height: 4px; background: #e0e0e0; border-radius: 10px; margin: 0 auto 15px; cursor: pointer; }
+        
+        .mode-selector { display: flex; justify-content: space-around; margin-bottom: 15px; background: #f8f9fa; border-radius: 12px; padding: 4px; }
+        .mode-btn { background: transparent; border: none; padding: 10px; border-radius: 10px; cursor: pointer; font-size: 20px; flex: 1; transition: 0.2s; filter: grayscale(1); }
+        .mode-btn.active { background: white; box-shadow: 0 2px 6px rgba(0,0,0,0.1); filter: grayscale(0); transform: scale(1.1); }
+        
+        input.route-input { width: 100%; padding: 12px; border: 1px solid #eee; border-radius: 12px; margin-bottom: 10px; box-sizing: border-box; font-weight: 600; background: #fafafa; font-size: 14px; }
+        .btn-go { background: var(--ori-blue); color: white; border: none; padding: 16px; border-radius: 14px; font-weight: 900; cursor: pointer; width: 100%; font-size: 16px; letter-spacing: 1px; }
+
+        /* BLUE DOT */
+        .blue-dot { width: 14px; height: 14px; background: #1a73e8; border: 3px solid white; border-radius: 50%; box-shadow: 0 0 15px rgba(26,115,232,0.8); }
+        .pulse { position: absolute; width: 35px; height: 35px; border: 2px solid #1a73e8; border-radius: 50%; animation: pulse-animation 2s infinite; pointer-events: none; margin: -13.5px 0 0 -13.5px; }
+        @keyframes pulse-animation { 0% { transform: scale(0.5); opacity: 1; } 100% { transform: scale(2.5); opacity: 0; } }
+        
+        .leaflet-routing-container { display: none; }
+    </style>
+</head>
+<body>
+
+<div class="search-container">
+    <img src="https://i.ibb.co/6JJ84v7y/IMG-9786.jpg" class="logo-img">
+    <input type="text" id="search-input" placeholder="Rechercher une destination...">
+    <div onclick="toggleNav()" style="cursor:pointer; font-size:22px;">🗺️</div>
+</div>
+
+<button class="btn-locate" onclick="getMyLocation()">🎯</button>
+
+<div id="map"></div>
+
+<div class="nav-sheet" id="nav-sheet">
+    <div class="handle" onclick="toggleNav()"></div>
+    <div class="mode-selector">
+        <button class="mode-btn active" id="btn-car" onclick="setMode('car')">🚗</button>
+        <button class="mode-btn" id="btn-moto" onclick="setMode('moto')">🏍️</button>
+        <button class="mode-btn" id="btn-walk" onclick="setMode('walk')">🚶</button>
+    </div>
+    <input type="text" id="start-code" class="route-input" placeholder="Ma position">
+    <input type="text" id="end-code" class="route-input" placeholder="Code Destination">
+    <button class="btn-go" onclick="calculerTout()">DÉMARRER LA NAVIGATION</button>
+</div>
+
+<script>
+    const PRECISION = 10000;
+    let map, routingControl, userMarker, currentMode = 'car';
+
+    // 1. Initialisation Carte
+    map = L.map('map', { zoomControl: false }).setView([6.4336, 2.3511], 15);
+    L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}').addTo(map);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { opacity: 0.3 }).addTo(map);
+
+    // 2. MATHÉMATIQUE GÉODÉSIQUE (HAVERSINE)
+    function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371; // Rayon de la Terre en km
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+                  Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+                  Math.sin(dLon/2) * Math.sin(dLon/2);
+        const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+        return R * c; // Distance précise en km
+    }
+
+    // 3. DÉTECTION PAYS DYNAMIQUE
+    async function getPrefix(lat, lon) {
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lon}`);
+            const data = await res.json();
+            return data.address.country_code.toUpperCase() || "BJ";
+        } catch(e) { return "BJ"; }
+    }
+
+    function encode(lat, lon, prefix) {
+        return `${prefix}-${Math.round(lat * PRECISION)}-${Math.round(lon * PRECISION)}`;
+    }
+
+    function decode(code) {
+        const p = code.toUpperCase().trim().split('-');
+        if(p.length < 3) return null;
+        return { lat: p[1]/PRECISION, lon: p[2]/PRECISION };
+    }
+
+    // 4. GÉOLOCALISATION
+    function getMyLocation() {
+        if (!navigator.geolocation) return alert("GPS non supporté");
+        navigator.geolocation.getCurrentPosition(async (pos) => {
+            const p = [pos.coords.latitude, pos.coords.longitude];
+            const prefix = await getPrefix(p[0], p[1]);
+            document.getElementById('start-code').value = encode(p[0], p[1], prefix);
+            map.setView(p, 18);
+            if (userMarker) map.removeLayer(userMarker);
+            userMarker = L.marker(p, { icon: L.divIcon({ className: 'c', html: '<div class="blue-dot"></div><div class="pulse"></div>' }) }).addTo(map);
+        });
+    }
+
+    function toggleNav() { document.getElementById('nav-sheet').classList.toggle('open'); }
+    function setMode(m) {
+        currentMode = m;
+        document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+        document.getElementById('btn-' + m).classList.add('active');
+    }
+
+    // 5. CALCUL ITINÉRAIRE & TRAFIC
+    function calculerTout() {
+        const s = decode(document.getElementById('start-code').value);
+        const e = decode(document.getElementById('end-code').value);
+        if(!s || !e) return alert("Codes invalides");
+
+        // Distance Haversine (A vol d'oiseau)
+        const distOiseau = haversine(s.lat, s.lon, e.lat, e.lon);
+
+        if (routingControl) map.removeControl(routingControl);
+
+        routingControl = L.Routing.control({
+            waypoints: [L.latLng(s.lat, s.lon), L.latLng(e.lat, e.lon)],
+            router: L.Routing.osrmv1({ serviceUrl: 'https://router.project-osrm.org/route/v1', profile: currentMode === 'walk' ? 'foot' : 'driving' }),
+            lineOptions: { styles: [{ color: currentMode === 'walk' ? '#1a73e8' : '#34a853', weight: 8, opacity: 0.8 }] },
+            createMarker: () => null
+        }).addTo(map);
+
+        routingControl.on('routesfound', (ev) => {
+            const r = ev.routes[0];
+            const distRoute = r.summary.totalDistance / 1000;
+            let time = r.summary.totalTime / 60;
+
+            // INTELLIGENCE LOCALE (Trafic & Vitesse)
+            const h = new Date().getHours();
+            const isRush = (h >= 7 && h <= 9) || (h >= 17 && h <= 19);
+            const traffic = isRush ? 1.5 : 1.0;
+
+            if(currentMode === 'moto') time = (time * 0.8) * traffic;
+            else if(currentMode === 'walk') time = (distRoute / 5) * 60;
+            else time = time * traffic;
+
+            alert(`🌍 CALCUL HAVERSINE RÉUSSI\n\n` +
+                  `📍 Vol d'oiseau : ${distOiseau.toFixed(2)} km\n` +
+                  `🛣️ Par la route : ${distRoute.toFixed(2)} km\n` +
+                  `⏱️ Temps : ${Math.round(time)} min ${isRush ? '(Trafic dense 🚦)' : '(Fluide 🟢)'}`);
+            toggleNav();
+        });
+    }
+
+    map.on('click', async (e) => {
+        const prefix = await getPrefix(e.latlng.lat, e.latlng.lng);
+        const code = encode(e.latlng.lat, e.latlng.lng, prefix);
+        L.popup().setLatLng(e.latlng).setContent(`
+            <div style="text-align:center; padding:5px;">
+                <b style="color:gray; font-size:10px;">CODE ORI ${prefix}</b><br>
+                <span style="font-size:18px; font-weight:900; color:var(--ori-blue);">${code}</span><br>
+                <button onclick="setDest('${code}')" style="background:var(--ori-blue); color:white; border:none; padding:8px 15px; border-radius:15px; font-weight:900; margin-top:10px; cursor:pointer; width:100%;">DESTINATION</button>
+            </div>
+        `).openOn(map);
+    });
+
+    function setDest(c) { document.getElementById('end-code').value = c; toggleNav(); }
+</script>
+</body>
+</html>
