@@ -1,4 +1,19 @@
-# Projets
+# Projects / Projets
+
+**English** — Web apps by Ricardo Tessy (Full Stack Developer, Benin): a PWA navigation map (ORI Maps), a 3D browser game (Cauri Rush), a student timetable app (ESGIS Connect), and two accounting/CRM apps for West African businesses (SuiviPro, SuiviPro Expert). Each folder has its own README with features, stack and how to run it.
+
+| Folder | Project |
+|---|---|
+| [`ori-maps/`](ori-maps/) | Geodesic navigation map (PWA) |
+| [`cauri-rush-pwa/`](cauri-rush-pwa/) | 3D browser game with multiplayer |
+| [`esgis-connect-site/`](esgis-connect-site/) | Student timetable PWA |
+| [`suivipro/`](suivipro/) | CRM and OHADA accounting |
+| [`suivipro-expert/`](suivipro-expert/) | Multi-client accounting-firm edition |
+| [`moncodebenin/`](moncodebenin/) | Professional logistics app |
+
+---
+
+**Français**
 
 Ce dépôt regroupe plusieurs applications web (HTML/JS, la plupart installables en PWA).
 
