@@ -1,0 +1,23 @@
+# Secrets : ne jamais envoyer sur GitHub
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+secrets/
+service-account*.json
+
+# Dépendances et builds
+node_modules/
+dist-temp/
+
+# Fichiers système et éditeurs
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Journaux
+*.log
+npm-debug.log*
